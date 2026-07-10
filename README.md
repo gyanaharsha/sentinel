@@ -47,10 +47,16 @@ cd site && python3 -m http.server 8000
 
 The `terraform/` folder deploys the same site the way production sites ship: private S3 origin behind CloudFront with Origin Access Control, HTTPS via the default CloudFront cert. `terraform init && terraform apply`. GitHub Pages is the canonical home; the AWS path exists because I wanted to build the origin-access pattern myself.
 
+## What's in v2 (Jul 2026)
+
+- **Live breach-data chart.** Every k-anonymity check already downloads ~800 real (suffix, count) records. v2 charts that range — sorted counts on a log scale. Password popularity is heavy-tailed / Zipfian (Wang et al., *Zipf's Law in Passwords*, IEEE TIFS 2017), and you can see it in every single range. If your password is breached, its bar is highlighted. No datasets shipped, nothing fabricated — it's the actual API response, visualized.
+- **NIST section.** SP 800-63B Rev. 4 (finalized 2025) now *mandates* blocklist screening and prohibits composition rules — length-first. The strength flags were rewritten to match (15-char single-factor minimum instead of complexity worship).
+- **Generator.** `crypto.getRandomValues` with rejection sampling to avoid modulo bias; lookalike characters (l/I/1/O/0) dropped deliberately. Honest entropy readout.
+- **Redesign.** v1 was a dark theme with a glowing accent — which, fair, is what every security side-project looks like. v2 is light, system fonts, one blue.
+
 ## Roadmap
 
-- [ ] Panel 3: analysis of a public breach corpus (length/entropy distributions, top patterns) with pandas, charts on the page — plus plotting *your* password's entropy against the leaked distribution
-- [ ] Passphrase generator with entropy readout
+- [ ] Full public breach-corpus analysis with pandas (length/entropy distributions, top patterns)
 - [ ] Hindi/Telugu localization
 
 ## Credits

@@ -3,174 +3,175 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sentinel — check if a password is breached, without revealing it</title>
-<meta name="description" content="Privacy-preserving password breach check using k-anonymity. Your password never leaves this page.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<title>Sentinel — check a password against breach data, privately</title>
+<meta name="description" content="Privacy-preserving password breach check using k-anonymity. The password never leaves your browser.">
 <style>
 :root{
-  --night:#0B1120;        /* deep watch-night background */
-  --panel:#121B2E;        /* raised surfaces */
-  --panel-2:#182339;      /* hover / inner surfaces */
-  --line:#243149;         /* hairline borders */
-  --lantern:#E8B44C;      /* the sentinel's lamp — primary accent */
-  --lantern-dim:#8a6c2e;
-  --ink:#EDF1F7;          /* bright text */
-  --mist:#7C8DB0;         /* muted text */
-  --danger:#E15A5A;       /* breached */
-  --safe:#5FB88A;         /* clean */
-  --mono:'IBM Plex Mono',ui-monospace,monospace;
-  --sans:'IBM Plex Sans',system-ui,sans-serif;
-  --serif:'Instrument Serif',Georgia,serif;
+  --bg:#fbfbfd; --band:#f5f5f7; --card:#ffffff;
+  --ink:#1d1d1f; --gray:#6e6e73; --line:#e8e8ed;
+  --blue:#0071e3; --blue-dark:#0060c0;
+  --red:#d70015; --red-bg:#fff2f3;
+  --green:#1d7a3e; --green-bg:#f2faf4;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{background:var(--night);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
-::selection{background:var(--lantern);color:var(--night)}
+body{background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:0 22px}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
 
-.wrap{max-width:880px;margin:0 auto;padding:0 24px}
+header{padding:18px 0;border-bottom:1px solid var(--line);background:rgba(251,251,253,.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:5}
+header .wrap{display:flex;align-items:center;justify-content:space-between}
+.brand{font-weight:600;font-size:1.05rem;letter-spacing:-.01em}
+header nav a{color:var(--gray);font-size:.82rem;margin-left:20px}
+header nav a:hover{color:var(--ink);text-decoration:none}
 
-/* ---------- header ---------- */
-header{padding:28px 0;display:flex;align-items:center;justify-content:space-between}
-.brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:1.5rem;letter-spacing:.01em}
-.brand .lamp{width:10px;height:10px;border-radius:50%;background:var(--lantern);box-shadow:0 0 14px 3px rgba(232,180,76,.55);animation:breathe 4s ease-in-out infinite}
-@keyframes breathe{0%,100%{box-shadow:0 0 10px 2px rgba(232,180,76,.4)}50%{box-shadow:0 0 18px 5px rgba(232,180,76,.7)}}
-header nav a{color:var(--mist);text-decoration:none;font-size:.85rem;margin-left:22px}
-header nav a:hover{color:var(--lantern)}
+.hero{padding:76px 0 30px;text-align:center}
+.hero h1{font-size:clamp(2.3rem,6vw,3.6rem);font-weight:700;letter-spacing:-.025em;line-height:1.08}
+.hero p{color:var(--gray);font-size:1.12rem;max-width:46ch;margin:18px auto 0}
 
-/* ---------- hero ---------- */
-.hero{padding:56px 0 20px;text-align:left}
-.hero h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.2rem,5.5vw,3.4rem);line-height:1.12;max-width:20ch}
-.hero h1 em{font-style:italic;color:var(--lantern)}
-.hero p.lede{color:var(--mist);max-width:52ch;margin-top:18px;font-size:1.02rem}
-
-/* ---------- the tool ---------- */
-.tool{margin:44px 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px}
-.field-row{display:flex;gap:10px;flex-wrap:wrap}
-.pw-wrap{flex:1;min-width:230px;position:relative}
-input[type=password],input[type=text].pw{width:100%;background:var(--night);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:var(--mono);font-size:1rem;padding:14px 88px 14px 16px;outline:none;transition:border-color .2s}
-input:focus{border-color:var(--lantern)}
-.toggle-vis{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mist);font-family:var(--sans);font-size:.75rem;cursor:pointer;padding:6px}
+.tool{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:26px;margin:36px 0 8px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.pw-wrap{flex:1;min-width:220px;position:relative}
+input[type=password],input[type=text].pw{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-family:var(--mono);font-size:.98rem;padding:13px 74px 13px 15px;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,113,227,.12)}
+.toggle-vis{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);font-size:.75rem;cursor:pointer;padding:6px}
 .toggle-vis:hover{color:var(--ink)}
-button.check{background:var(--lantern);color:#161006;border:none;border-radius:9px;font-family:var(--sans);font-weight:600;font-size:.95rem;padding:14px 26px;cursor:pointer;transition:transform .12s,filter .2s}
-button.check:hover{filter:brightness(1.08)}
-button.check:active{transform:scale(.98)}
-button.check:disabled{filter:grayscale(.6) brightness(.7);cursor:wait}
-.assurance{margin-top:12px;font-size:.8rem;color:var(--mist)}
+button.primary{background:var(--blue);color:#fff;border:none;border-radius:980px;font-weight:500;font-size:.95rem;padding:13px 26px;cursor:pointer;transition:background .15s}
+button.primary:hover{background:var(--blue-dark)}
+button.primary:disabled{opacity:.5;cursor:wait}
+.assurance{margin-top:12px;font-size:.8rem;color:var(--gray)}
 .assurance b{color:var(--ink);font-weight:500}
 
-/* ---------- hash split visual (the signature) ---------- */
-.split{display:none;margin-top:26px;border-top:1px dashed var(--line);padding-top:22px}
-.split.on{display:block;animation:rise .45s ease}
-@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.split .cap{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mist);margin-bottom:10px}
-.hashline{font-family:var(--mono);font-size:clamp(.72rem,1.9vw,.95rem);word-break:break-all;line-height:1.9}
-.hashline .pre{color:var(--night);background:var(--lantern);padding:2px 5px;border-radius:5px;font-weight:500}
-.hashline .suf{color:var(--mist);border-bottom:1px dotted var(--line)}
-.legend{display:flex;gap:26px;flex-wrap:wrap;margin-top:14px}
-.legend div{font-size:.78rem;color:var(--mist);display:flex;align-items:center;gap:8px}
-.dotp{width:9px;height:9px;border-radius:3px;background:var(--lantern);flex:none}
-.dots{width:9px;height:9px;border-radius:3px;border:1px dotted var(--mist);flex:none}
+.split{display:none;margin-top:22px;border-top:1px solid var(--line);padding-top:20px}
+.split.on{display:block}
+.cap{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray);margin-bottom:8px}
+.hashline{font-family:var(--mono);font-size:clamp(.7rem,1.85vw,.92rem);word-break:break-all;line-height:1.9}
+.hashline .pre{color:#fff;background:var(--blue);padding:2px 5px;border-radius:5px}
+.hashline .suf{color:var(--gray)}
+.legend{display:flex;gap:22px;flex-wrap:wrap;margin-top:10px;font-size:.78rem;color:var(--gray)}
 .legend b{color:var(--ink);font-weight:500}
+.dotb{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--blue);margin-right:6px;vertical-align:baseline}
+.dotg{display:inline-block;width:9px;height:9px;border-radius:3px;border:1px solid var(--gray);margin-right:6px;vertical-align:baseline}
 
-/* ---------- verdict ---------- */
-.verdict{display:none;margin-top:22px;border-radius:11px;padding:20px 22px;font-size:.95rem}
-.verdict.on{display:block;animation:rise .45s ease}
-.verdict.bad{background:rgba(225,90,90,.09);border:1px solid rgba(225,90,90,.4)}
-.verdict.good{background:rgba(95,184,138,.08);border:1px solid rgba(95,184,138,.35)}
-.verdict.err{background:var(--panel-2);border:1px solid var(--line)}
-.verdict h3{font-family:var(--serif);font-weight:400;font-size:1.35rem;margin-bottom:6px}
-.verdict.bad h3{color:var(--danger)}
-.verdict.good h3{color:var(--safe)}
+.verdict{display:none;margin-top:18px;border-radius:14px;padding:18px 20px}
+.verdict.on{display:block}
+.verdict.bad{background:var(--red-bg);border:1px solid #f3c2c7}
+.verdict.good{background:var(--green-bg);border:1px solid #cfe8d6}
+.verdict.err{background:var(--band);border:1px solid var(--line)}
+.verdict h3{font-size:1.15rem;font-weight:600;letter-spacing:-.01em;margin-bottom:4px}
+.verdict.bad h3{color:var(--red)}
+.verdict.good h3{color:var(--green)}
+.verdict p{color:var(--gray);font-size:.87rem}
 .verdict .n{font-family:var(--mono)}
-.verdict p{color:var(--mist);font-size:.88rem}
 
-/* ---------- strength panel ---------- */
-.strength{display:none;margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 28px}
-.strength.on{display:block;animation:rise .5s ease}
-.strength h2{font-family:var(--serif);font-weight:400;font-size:1.3rem;margin-bottom:16px}
-.meter{height:9px;border-radius:5px;background:var(--night);overflow:hidden;border:1px solid var(--line)}
-.meter i{display:block;height:100%;width:0;border-radius:5px;transition:width .5s ease,background .5s ease}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:18px}
-.stat{background:var(--night);border:1px solid var(--line);border-radius:9px;padding:13px 15px}
-.stat .k{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mist)}
-.stat .v{font-family:var(--mono);font-size:1.02rem;margin-top:4px}
-.flags{margin-top:16px;display:flex;flex-direction:column;gap:8px}
-.flag{font-size:.85rem;color:var(--mist);padding-left:20px;position:relative}
-.flag::before{content:'';position:absolute;left:2px;top:.55em;width:7px;height:7px;border-radius:50%}
-.flag.warn::before{background:var(--danger)}
-.flag.ok::before{background:var(--safe)}
+.panel{display:none;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin-top:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.panel.on{display:block}
+.panel h2{font-size:1.25rem;font-weight:600;letter-spacing:-.015em;margin-bottom:14px}
+.meter{height:8px;border-radius:4px;background:var(--band);overflow:hidden}
+.meter i{display:block;height:100%;width:0;border-radius:4px;transition:width .5s,background .5s}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:16px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .k{font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray)}
+.stat .v{font-family:var(--mono);font-size:.98rem;margin-top:3px}
+.flags{margin-top:14px;display:flex;flex-direction:column;gap:7px}
+.flag{font-size:.85rem;color:var(--gray);padding-left:18px;position:relative}
+.flag::before{content:'';position:absolute;left:0;top:.5em;width:8px;height:8px;border-radius:50%}
+.flag.warn::before{background:var(--red)}
+.flag.ok::before{background:var(--green)}
 
-/* ---------- how it works ---------- */
-.how{margin:72px 0}
-.how h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3.5vw,2.1rem);margin-bottom:8px}
-.how p.sub{color:var(--mist);max-width:56ch;margin-bottom:34px}
-.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
-.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px}
-.step .glyph{font-family:var(--mono);color:var(--lantern);font-size:.8rem;margin-bottom:12px;display:block}
-.step h3{font-size:.98rem;font-weight:600;margin-bottom:8px}
-.step p{color:var(--mist);font-size:.86rem}
-.analogy{margin-top:26px;border-left:2px solid var(--lantern);padding:6px 0 6px 20px;color:var(--mist);font-size:.92rem;max-width:62ch}
-.analogy em{color:var(--ink);font-style:italic;font-family:var(--serif);font-size:1.05em}
+.chart-note{font-size:.8rem;color:var(--gray);margin-top:12px}
+#zipf{width:100%;height:auto;display:block;margin-top:6px}
+#zipf rect{fill:#c7c7cc}
+#zipf rect.me{fill:var(--red)}
 
-/* ---------- why ---------- */
-.why{margin:72px 0;border-top:1px solid var(--line);padding-top:48px}
-.why h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3.5vw,2.1rem);margin-bottom:30px}
-.figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
-.fig{padding:4px 0}
-.fig .big{font-family:var(--serif);font-size:2.6rem;color:var(--lantern);line-height:1.1}
-.fig .cap2{color:var(--mist);font-size:.83rem;margin-top:6px;max-width:26ch}
+.gen .out{font-family:var(--mono);font-size:1rem;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:13px 15px;word-break:break-all;min-height:3em;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.gen .out button{background:none;border:1px solid var(--line);border-radius:8px;padding:5px 12px;font-size:.75rem;color:var(--blue);cursor:pointer;flex:none}
+.gen .row2{display:flex;align-items:center;gap:14px;margin:14px 0;flex-wrap:wrap}
+.gen label{font-size:.85rem;color:var(--gray)}
+.gen input[type=range]{flex:1;min-width:140px;accent-color:var(--blue)}
+.gen .ent{font-size:.8rem;color:var(--gray)}
+.gen .ent b{color:var(--ink);font-family:var(--mono)}
 
-footer{margin-top:80px;border-top:1px solid var(--line);padding:30px 0 44px;color:var(--mist);font-size:.78rem;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
-footer a{color:var(--mist)}
-footer a:hover{color:var(--lantern)}
+section.band{background:var(--band);margin-top:80px;padding:64px 0}
+section.plain{padding:64px 0 0}
+.sect h2{font-size:clamp(1.6rem,4vw,2.2rem);font-weight:700;letter-spacing:-.02em;text-align:center}
+.sect p.sub{color:var(--gray);text-align:center;max-width:54ch;margin:12px auto 36px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+.step .g{font-family:var(--mono);color:var(--blue);font-size:.75rem;display:block;margin-bottom:10px}
+.step h3{font-size:.95rem;font-weight:600;margin-bottom:6px}
+.step p{color:var(--gray);font-size:.85rem}
+.analogy{margin:28px auto 0;max-width:60ch;color:var(--gray);font-size:.92rem;text-align:center}
+.analogy em{color:var(--ink)}
 
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
+.nist{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:8px}
+.nist .item{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+.nist .item h3{font-size:1.5rem;font-weight:700;letter-spacing:-.02em}
+.nist .item p{color:var(--gray);font-size:.84rem;margin-top:6px}
+.src{text-align:center;color:var(--gray);font-size:.78rem;margin-top:22px}
+
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;text-align:center}
+.figs .big{font-size:2.6rem;font-weight:700;letter-spacing:-.03em}
+.figs .c{color:var(--gray);font-size:.82rem;max-width:26ch;margin:4px auto 0}
+
+footer{margin-top:80px;border-top:1px solid var(--line);padding:34px 0 50px;color:var(--gray);font-size:.8rem}
+footer .notes{max-width:60ch}
+footer h4{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;color:var(--gray)}
+footer ul{list-style:none;margin-top:6px}
+footer li{margin-bottom:4px}
+footer .cr{margin-top:22px}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 </style>
 </head>
 <body>
 
-<div class="wrap">
 <header>
-  <div class="brand"><span class="lamp" aria-hidden="true"></span>Sentinel</div>
-  <nav aria-label="Sections">
-    <a href="#how">How it works</a>
-    <a href="#why">Why it matters</a>
-  </nav>
+  <div class="wrap">
+    <span class="brand">Sentinel</span>
+    <nav aria-label="Sections">
+      <a href="#generate">Generator</a>
+      <a href="#how">How it works</a>
+      <a href="#nist">What NIST says</a>
+    </nav>
+  </div>
 </header>
 
+<div class="wrap">
+
 <section class="hero">
-  <h1>Check if a password has been breached — <em>without revealing it.</em></h1>
-  <p class="lede">Checks a password against 800M+ leaked credentials from Have I Been Pwned — using k-anonymity, so the password itself never leaves your browser. Only 5 characters of its hash do. Don't take my word for it: open the network tab and watch.</p>
+  <h1>Is your password<br>already out there?</h1>
+  <p>Check it against 800M+ leaked credentials — without the password ever leaving your browser. Only 5 characters of its hash do. Open the network tab and verify that yourself.</p>
 </section>
 
 <section class="tool" aria-label="Password check">
-  <div class="field-row">
+  <div class="row">
     <div class="pw-wrap">
-      <input type="password" id="pw" autocomplete="off" spellcheck="false"
-             placeholder="Type a password to check" aria-label="Password to check">
+      <input type="password" id="pw" autocomplete="off" spellcheck="false" placeholder="Type a password to check" aria-label="Password to check">
       <button class="toggle-vis" id="vis" type="button" aria-label="Show password">show</button>
     </div>
-    <button class="check" id="go" type="button">Check exposure</button>
+    <button class="primary" id="go" type="button">Check exposure</button>
   </div>
-  <p class="assurance">Nothing you type is stored or sent. <b>Open your browser's network tab and watch:</b> the only request is a 5-character hash prefix.</p>
+  <p class="assurance">Nothing is stored or logged — there's no backend here at all. <b>The only request is a 5-character hash prefix.</b></p>
 
   <div class="split" id="split" aria-live="polite">
     <div class="cap">SHA-1 fingerprint of your password</div>
     <div class="hashline" id="hashline"></div>
     <div class="legend">
-      <div><span class="dotp"></span><span><b>First 5 characters</b> — the only thing sent</span></div>
-      <div><span class="dots"></span><span><b>Remaining 35</b> — never leave this page</span></div>
+      <span><span class="dotb"></span><b>First 5</b> — the only thing sent</span>
+      <span><span class="dotg"></span><b>Remaining 35</b> — never leave this page</span>
     </div>
   </div>
 
   <div class="verdict" id="verdict" role="status"></div>
 </section>
 
-<section class="strength" id="strength" aria-label="Strength analysis">
-  <h2>Strength analysis</h2>
+<section class="panel" id="strength" aria-label="Strength analysis">
+  <h2>Strength</h2>
   <div class="meter"><i id="bar"></i></div>
   <div class="stats">
     <div class="stat"><div class="k">Length</div><div class="v" id="s-len">—</div></div>
@@ -181,191 +182,262 @@ footer a:hover{color:var(--lantern)}
   <div class="flags" id="flags"></div>
 </section>
 
-<section class="how" id="how">
-  <h2>How the check stays private</h2>
-  <p class="sub">The naive way to check a password against a breach list is to send the password to a server — which is itself a leak. This is the workaround I found genuinely elegant when I first studied it: k-anonymity, the same range-query protocol password managers like 1Password use under the hood.</p>
-  <div class="steps">
-    <div class="step">
-      <span class="glyph">password → 40 hex chars</span>
-      <h3>Hash locally</h3>
-      <p>Your browser computes the SHA-1 fingerprint of the password. This happens on your machine, in this page's code — the password itself never exists anywhere else.</p>
-    </div>
-    <div class="step">
-      <span class="glyph">send: first 5 only</span>
-      <h3>Ask by prefix</h3>
-      <p>Only the first 5 characters of the fingerprint are sent to the Have I Been Pwned database. That prefix matches roughly 800 different leaked hashes — the server cannot tell which one, if any, is yours.</p>
-    </div>
-    <div class="step">
-      <span class="glyph">match happens here</span>
-      <h3>Compare locally</h3>
-      <p>The server returns every suffix in that range. Your browser checks — privately, on your device — whether the remaining 35 characters appear in the list.</p>
-    </div>
-  </div>
-  <p class="analogy"><em>Instead of asking the librarian "do you have my diary?"</em> — you ask for everything on shelf 5B and look through the shelf yourself. The librarian never learns which book you were after.</p>
+<section class="panel" id="zipfpanel" aria-label="Live breach data">
+  <h2>The neighborhood your hash lives in</h2>
+  <p class="chart-note" style="margin:0 0 6px">Each check downloads ~800 real breach records that share your hash prefix. Here's how often each has been seen — sorted, log scale. A handful dominate; the rest form a long tail. Password popularity follows Zipf's law (Wang&nbsp;et&nbsp;al., <i>Zipf's Law in Passwords</i>, IEEE&nbsp;TIFS&nbsp;2017)<span id="youline"></span>.</p>
+  <svg id="zipf" viewBox="0 0 760 190" preserveAspectRatio="none" role="img" aria-label="Bar chart of breach counts in your hash prefix range"></svg>
+  <p class="chart-note" id="zipfstats"></p>
 </section>
 
-<section class="why" id="why">
-  <h2>Why this matters</h2>
-  <div class="figures">
-    <div class="fig"><div class="big">22%</div><div class="cap2">of confirmed breaches begin with stolen credentials — the leading entry point (Verizon DBIR 2025)</div></div>
-    <div class="fig"><div class="big">94%</div><div class="cap2">of 19 billion leaked passwords analyzed were reused or duplicated (Cybernews)</div></div>
-    <div class="fig"><div class="big">6B+</div><div class="cap2">passwords stolen by malware in 2025 alone (Specops Breached Password Report 2026)</div></div>
+<section class="panel on gen" id="generate" aria-label="Password generator">
+  <h2>Need a replacement?</h2>
+  <div class="out"><span id="genout">Press generate.</span><button id="copy" type="button">Copy</button></div>
+  <div class="row2">
+    <label for="len">Length <b id="lenv">20</b></label>
+    <input type="range" id="len" min="12" max="40" value="20">
+    <button class="primary" id="genbtn" type="button">Generate</button>
+  </div>
+  <p class="ent">Entropy: <b id="genent">—</b> · Generated locally with <span style="font-family:var(--mono)">crypto.getRandomValues</span>, the browser's cryptographically secure RNG — not <span style="font-family:var(--mono)">Math.random</span>, which is predictable. Nothing is transmitted; check it above if you don't believe me.</p>
+</section>
+
+</div>
+
+<section class="band sect" id="how">
+  <div class="wrap">
+    <h2>How the check stays private</h2>
+    <p class="sub">Sending a password to a "checker site" would itself be a leak. Sentinel uses k-anonymity — the range-query protocol password managers use under the hood.</p>
+    <div class="steps">
+      <div class="step"><span class="g">password → 40 hex chars</span><h3>Hash locally</h3><p>The browser computes the SHA-1 fingerprint on your machine. The password itself never exists anywhere else.</p></div>
+      <div class="step"><span class="g">send: first 5 only</span><h3>Ask by prefix</h3><p>Only 5 characters go to Have I Been Pwned. ~800 leaked hashes share any prefix — the server can't tell which, if any, is yours.</p></div>
+      <div class="step"><span class="g">match happens here</span><h3>Compare locally</h3><p>The full range comes back (padded to a uniform size, so response length leaks nothing) and your browser checks it privately.</p></div>
+    </div>
+    <p class="analogy"><em>Instead of asking the librarian "do you have my diary?"</em> — you ask for everything on shelf 5B and search the shelf yourself. The librarian never learns which book you were after.</p>
+  </div>
+</section>
+
+<section class="plain sect" id="nist">
+  <div class="wrap">
+    <h2>This isn't just my opinion</h2>
+    <p class="sub">NIST's Digital Identity Guidelines (SP 800-63B, Revision 4 — the current US federal standard, finalized 2025) rewrote the password rulebook. The short version:</p>
+    <div class="nist">
+      <div class="item"><h3>15+</h3><p>Minimum length when a password is the only factor. Length beats everything — each character multiplies the search space.</p></div>
+      <div class="item"><h3>No rules</h3><p>Composition requirements ("must include a symbol") are now prohibited — "shall not" — because they push people into predictable patterns.</p></div>
+      <div class="item"><h3>Blocklists</h3><p>New passwords must be screened against breached and common passwords. That screening is literally what this page does.</p></div>
+      <div class="item"><h3>No expiry</h3><p>Forced periodic changes are out. Change a password when there's evidence of compromise — like it appearing above.</p></div>
+    </div>
+    <p class="src">Source: <a href="https://pages.nist.gov/800-63-4/sp800-63b.html" rel="noopener">NIST SP 800-63B-4</a>, Sections 3.1.1–3.1.2</p>
+  </div>
+</section>
+
+<section class="plain sect" id="why">
+  <div class="wrap">
+    <h2>Why bother?</h2>
+    <p class="sub" style="margin-bottom:28px">Because credentials are how breaches actually start.</p>
+    <div class="figs">
+      <div><div class="big">22%</div><div class="c">of confirmed breaches began with stolen credentials — the top vector (Verizon DBIR 2025)</div></div>
+      <div><div class="big">94%</div><div class="c">of 19B leaked passwords analyzed were reused or duplicated (Cybernews)</div></div>
+      <div><div class="big">6B+</div><div class="c">passwords stolen by infostealer malware in 2025 (Specops)</div></div>
+    </div>
   </div>
 </section>
 
 <footer>
-  <span>Built by Harsha (<a href="https://github.com/gyanaharsha" rel="noopener">gyanaharsha</a>) — MS CS, cryptography &amp; cybersecurity. Started as a study exercise on k-anonymity; kept going.</span>
-  <span>Breach data: <a href="https://haveibeenpwned.com/Passwords" rel="noopener">Have I Been Pwned</a> range API</span>
+  <div class="wrap">
+    <div class="notes">
+      <h4>Notes</h4>
+      <ul>
+        <li>· Yes, SHA-1 — it's broken for collisions, but that property isn't load-bearing here. It's a bucketing ID for the range lookup, and HIBP publishes the dataset as SHA-1.</li>
+        <li>· Jul 2026 — redesigned in light theme (v1 was another dark security site with a glowing accent; fair criticism), added the live range chart and generator.</li>
+        <li>· Planned: analysis of a full public breach corpus with pandas, Hindi/Telugu localization.</li>
+      </ul>
+      <p class="cr">Built by Harsha (<a href="https://github.com/gyanaharsha" rel="noopener">gyanaharsha</a>) — MS CS, cryptography &amp; cybersecurity. Breach data: <a href="https://haveibeenpwned.com/Passwords" rel="noopener">Have I Been Pwned</a> range API.</p>
+    </div>
+  </div>
 </footer>
-</div>
 
 <script>
 "use strict";
-const $ = id => document.getElementById(id);
-const pw = $("pw"), go = $("go"), vis = $("vis");
-const split = $("split"), hashline = $("hashline"), verdict = $("verdict");
-const strength = $("strength"), bar = $("bar"), flags = $("flags");
+var $ = function(id){ return document.getElementById(id); };
+var pw=$("pw"), go=$("go"), vis=$("vis"), split=$("split"), hashline=$("hashline"),
+    verdict=$("verdict"), strength=$("strength"), bar=$("bar"), flags=$("flags"),
+    zipfpanel=$("zipfpanel"), zipf=$("zipf");
 
-/* SHA-1 via the browser's Web Crypto API. Needs a secure context
-   (https or localhost) — learned that the hard way testing over plain
-   http and getting `crypto.subtle is undefined`.
-   TODO(panel 3): breach-corpus stats with pandas, charts rendered here. */
-async function sha1Hex(str){
-  const data = new TextEncoder().encode(str);
-  const buf = await crypto.subtle.digest("SHA-1", data);
-  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+/* SHA-1 via Web Crypto. Needs a secure context (https or localhost) —
+   learned that the hard way over plain http: `crypto.subtle is undefined`. */
+function sha1Hex(str){
+  var data = new TextEncoder().encode(str);
+  return crypto.subtle.digest("SHA-1", data).then(function(buf){
+    var out="", bytes=new Uint8Array(buf), i;
+    for(i=0;i<bytes.length;i++){ out += bytes[i].toString(16).padStart(2,"0"); }
+    return out.toUpperCase();
+  });
 }
 
-/* ---------- strength analysis ---------- */
-const COMMON = ["password","123456","123456789","qwerty","abc123","111111","12345678","iloveyou","admin","welcome","monkey","dragon","letmein","football","princess","sunshine","master","hello","freedom","whatever","qazwsx","trustno1","654321","superman","1qaz2wsx","password1","password123","welcome123","admin123","india123"];
-const ROWS = ["qwertyuiop","asdfghjkl","zxcvbnm","1234567890"];
-
+/* ---------- strength ---------- */
+var COMMON=["password","123456","123456789","qwerty","abc123","111111","12345678","iloveyou","admin","welcome","monkey","dragon","letmein","football","princess","sunshine","master","hello","freedom","whatever","qazwsx","trustno1","654321","superman","1qaz2wsx","password1","password123","welcome123","admin123","india123"];
+var ROWS=["qwertyuiop","asdfghjkl","zxcvbnm","1234567890"];
 function charSpace(s){
-  let n = 0;
-  if(/[a-z]/.test(s)) n += 26;
-  if(/[A-Z]/.test(s)) n += 26;
-  if(/[0-9]/.test(s)) n += 10;
-  if(/[^a-zA-Z0-9]/.test(s)) n += 33;
-  return n || 1;
+  var n=0;
+  if(/[a-z]/.test(s)) n+=26;
+  if(/[A-Z]/.test(s)) n+=26;
+  if(/[0-9]/.test(s)) n+=10;
+  if(/[^a-zA-Z0-9]/.test(s)) n+=33;
+  return n||1;
 }
 function hasSequence(s){
-  const low = s.toLowerCase();
-  for(let i=0;i<low.length-2;i++){
-    const a=low.charCodeAt(i),b=low.charCodeAt(i+1),c=low.charCodeAt(i+2);
-    if(b===a+1 && c===b+1) return true;
-    if(b===a-1 && c===b-1) return true;
+  var low=s.toLowerCase(),i,a,b,c;
+  for(i=0;i<low.length-2;i++){
+    a=low.charCodeAt(i); b=low.charCodeAt(i+1); c=low.charCodeAt(i+2);
+    if((b===a+1&&c===b+1)||(b===a-1&&c===b-1)) return true;
   }
   return false;
 }
-function hasKeyboardWalk(s){
-  const low = s.toLowerCase();
-  return ROWS.some(r=>{
-    for(let i=0;i+3<=r.length;i++) if(low.includes(r.slice(i,i+3))) return true;
+function hasWalk(s){
+  var low=s.toLowerCase();
+  return ROWS.some(function(r){
+    for(var i=0;i+3<=r.length;i++){ if(low.indexOf(r.slice(i,i+3))>-1) return true; }
     return false;
   });
 }
 function humanTime(sec){
-  if(sec < 1) return "instant";
-  const u = [["yrs",31557600],["days",86400],["hrs",3600],["min",60],["sec",1]];
-  for(const [name,s] of u){
-    if(sec >= s){
-      const v = sec/s;
-      if(name==="yrs" && v > 1e12) return "> a trillion yrs";
-      if(name==="yrs" && v > 1e6) return (v/1e6).toFixed(0)+"M yrs";
-      return v.toFixed(v<10?1:0)+" "+name;
+  if(sec<1) return "instant";
+  var u=[["yrs",31557600],["days",86400],["hrs",3600],["min",60],["sec",1]],i,v;
+  for(i=0;i<u.length;i++){
+    if(sec>=u[i][1]){
+      v=sec/u[i][1];
+      if(u[i][0]==="yrs"&&v>1e12) return "> a trillion yrs";
+      if(u[i][0]==="yrs"&&v>1e6) return (v/1e6).toFixed(0)+"M yrs";
+      return v.toFixed(v<10?1:0)+" "+u[i][0];
     }
   }
   return "instant";
 }
 function analyze(s){
-  const space = charSpace(s);
-  const entropy = +(s.length * Math.log2(space)).toFixed(1);
-  const guesses = Math.pow(space, s.length);
-  const crack = guesses / 2 / 1e10;           // offline GPU rig: 10 billion guesses/sec
-  const items = [];
-  const low = s.toLowerCase();
-  if(COMMON.includes(low)) items.push(["warn","Appears in the most-common password lists — cracked instantly."]);
-  if(s.length < 12) items.push(["warn","Shorter than 12 characters. Length is the strongest single factor."]);
-  else items.push(["ok","Good length — every extra character multiplies the search space."]);
-  if(/^[A-Z][a-z]+[0-9!@#$%^&*]{1,3}$/.test(s)) items.push(["warn","Capital first letter + digits/symbol at the end — the pattern 60% of humans use. Cracking tools try it first."]);
-  if(/(19|20)\d{2}/.test(s)) items.push(["warn","Contains a year — one of the first substitutions cracking tools try."]);
-  if(hasSequence(s)) items.push(["warn","Contains a sequential run (abc / 123)."]);
-  if(hasKeyboardWalk(s)) items.push(["warn","Contains a keyboard walk (qwerty / asdf)."]);
+  var space=charSpace(s), entropy=+(s.length*Math.log2(space)).toFixed(1),
+      crack=Math.pow(space,s.length)/2/1e10, items=[], low=s.toLowerCase();
+  if(COMMON.indexOf(low)>-1) items.push(["warn","On the most-common lists — cracked instantly, blocked by any NIST-compliant system."]);
+  if(s.length<15) items.push(["warn","Under 15 characters — NIST's new minimum for password-only login. Length is the whole game."]);
+  else items.push(["ok","15+ characters — meets the NIST 800-63B-4 single-factor minimum."]);
+  if(/^[A-Z][a-z]+[0-9!@#$%^&*]{1,3}$/.test(s)) items.push(["warn","Capital first + digits at the end — the pattern most people use, so cracking tools try it first."]);
+  if(/(19|20)\d{2}/.test(s)) items.push(["warn","Contains a year — an early guess for any cracking tool."]);
+  if(hasSequence(s)) items.push(["warn","Sequential run (abc / 123)."]);
+  if(hasWalk(s)) items.push(["warn","Keyboard walk (qwerty / asdf)."]);
   if(/(.)\1{2,}/.test(s)) items.push(["warn","Repeated characters reduce effective entropy."]);
-  if(space >= 62 && s.length >= 12 && !items.some(f=>f[0]==="warn")) items.push(["ok","Mixed character classes with no obvious pattern — strong."]);
-  return {space, entropy, crack, items};
+  return {space:space, entropy:entropy, crack:crack, items:items};
 }
 function renderStrength(s){
-  const a = analyze(s);
-  $("s-len").textContent = s.length + " chars";
-  $("s-space").textContent = a.space + " symbols";
-  $("s-ent").textContent = a.entropy + " bits";
-  $("s-crack").textContent = humanTime(a.crack);
-  const pct = Math.min(100, (a.entropy/90)*100);
-  bar.style.width = pct + "%";
-  bar.style.background = pct < 35 ? "var(--danger)" : pct < 65 ? "var(--lantern)" : "var(--safe)";
-  flags.innerHTML = "";
-  a.items.forEach(([cls,txt])=>{
-    const d = document.createElement("div");
-    d.className = "flag " + cls;
-    d.textContent = txt;
-    flags.appendChild(d);
+  var a=analyze(s);
+  $("s-len").textContent=s.length+" chars";
+  $("s-space").textContent=a.space+" symbols";
+  $("s-ent").textContent=a.entropy+" bits";
+  $("s-crack").textContent=humanTime(a.crack);
+  var pct=Math.min(100,(a.entropy/90)*100);
+  bar.style.width=pct+"%";
+  bar.style.background=pct<35?"var(--red)":pct<65?"#e8a33d":"var(--green)";
+  flags.innerHTML="";
+  a.items.forEach(function(f){
+    var d=document.createElement("div");
+    d.className="flag "+f[0]; d.textContent=f[1]; flags.appendChild(d);
   });
   strength.classList.add("on");
 }
 
-/* ---------- the check ---------- */
-function showVerdict(cls, title, body){
-  verdict.className = "verdict on " + cls;
-  verdict.innerHTML = "<h3>"+title+"</h3><p>"+body+"</p>";
-}
-async function check(){
-  const val = pw.value;
-  if(!val){ pw.focus(); return; }
-  go.disabled = true; go.textContent = "Checking…";
-  try{
-    const hash = await sha1Hex(val);
-    const prefix = hash.slice(0,5), suffix = hash.slice(5);
-    hashline.innerHTML = '<span class="pre">'+prefix+'</span><span class="suf">'+suffix+'</span>';
-    split.classList.add("on");
-
-    const res = await fetch("https://api.pwnedpasswords.com/range/"+prefix, {
-      headers: {"Add-Padding":"true"}   // uniform response sizes; closes the length side-channel
-    });
-    if(!res.ok) throw new Error("API "+res.status);
-    const text = await res.text();
-    let count = 0;
-    for(const line of text.split("\n")){
-      const [suf, c] = line.trim().split(":");
-      if(suf === suffix){ count = parseInt(c,10); break; }
-    }
-    if(count > 0){
-      showVerdict("bad","Found in breaches — <span class='n'>"+count.toLocaleString()+"</span> times",
-        "This exact password appears in real breach data and is loaded into attackers' cracking lists. If you use it anywhere, change it now — and never reuse it.");
-    }else{
-      showVerdict("good","Not found in known breaches",
-        "This password doesn't appear in the 800M+ leaked set. That's necessary but not sufficient — check its structural strength below.");
-    }
-    renderStrength(val);
-  }catch(e){
-    showVerdict("err","Couldn't reach the breach database",
-      "The check requires a connection to api.pwnedpasswords.com. Your password still never left this page — the request that failed contained only a 5-character prefix. Try again in a moment.");
-  }finally{
-    go.disabled = false; go.textContent = "Check exposure";
+/* ---------- live Zipf chart from the actual range response ---------- */
+function renderZipf(counts, myCount){
+  counts.sort(function(a,b){ return b-a; });
+  var top=counts.slice(0,80), max=top[0]||1, W=760, H=190, PAD=4,
+      bw=(W-PAD*2)/top.length, svg="", i, h, mine=-1;
+  if(myCount>0){ mine=top.indexOf(myCount); }
+  for(i=0;i<top.length;i++){
+    h=Math.max(2,(Math.log10(top[i]+1)/Math.log10(max+1))*(H-24));
+    svg+='<rect x="'+(PAD+i*bw).toFixed(1)+'" y="'+(H-h).toFixed(1)+'" width="'+Math.max(1,bw-1.5).toFixed(1)+'" height="'+h.toFixed(1)+'"'+(i===mine?' class="me"':'')+'/>';
   }
+  zipf.innerHTML=svg;
+  var total=counts.reduce(function(a,b){return a+b;},0);
+  $("zipfstats").textContent="This range: "+counts.length+" leaked hashes, "+total.toLocaleString()+" total sightings. Most-seen: "+max.toLocaleString()+"×. Median: "+counts[Math.floor(counts.length/2)].toLocaleString()+"×.";
+  $("youline").innerHTML = mine>-1 ? " — <b style='color:var(--red)'>the red bar is yours</b>" : "";
+  zipfpanel.classList.add("on");
 }
-go.addEventListener("click", check);
-pw.addEventListener("keydown", e => { if(e.key === "Enter") check(); });
-pw.addEventListener("input", () => {           // stale results shouldn't linger
-  verdict.classList.remove("on");
-  split.classList.remove("on");
-  strength.classList.remove("on");
+
+/* ---------- the check ---------- */
+function showVerdict(cls,title,body){
+  verdict.className="verdict on "+cls;
+  verdict.innerHTML="<h3>"+title+"</h3><p>"+body+"</p>";
+}
+function resetBtn(){ go.disabled=false; go.textContent="Check exposure"; }
+go.addEventListener("click", function(){
+  var val=pw.value;
+  if(!val){ pw.focus(); return; }
+  go.disabled=true; go.textContent="Checking…";
+  sha1Hex(val).then(function(hash){
+    var prefix=hash.slice(0,5), suffix=hash.slice(5);
+    hashline.innerHTML='<span class="pre">'+prefix+'</span><span class="suf">'+suffix+'</span>';
+    split.classList.add("on");
+    return fetch("https://api.pwnedpasswords.com/range/"+prefix,{headers:{"Add-Padding":"true"}}).then(function(res){
+      if(!res.ok) throw new Error("API "+res.status);
+      return res.text();
+    }).then(function(text){
+      var count=0, counts=[], lines=text.split("\n"), i, parts, c;
+      for(i=0;i<lines.length;i++){
+        parts=lines[i].trim().split(":");
+        if(parts.length<2) continue;
+        c=parseInt(parts[1],10);
+        if(c>0) counts.push(c);
+        if(parts[0]===suffix) count=c;
+      }
+      if(count>0){
+        showVerdict("bad","Found in breaches — <span class='n'>"+count.toLocaleString()+"</span> times",
+          "This exact password is in attackers' cracking lists. If you use it anywhere, change it — the generator below is right there.");
+      }else{
+        showVerdict("good","Not found in known breaches",
+          "Not in the 800M+ leaked set. Necessary but not sufficient — check the structural strength below.");
+      }
+      renderStrength(val);
+      renderZipf(counts, count);
+    });
+  }).catch(function(){
+    showVerdict("err","Couldn't reach the breach database",
+      "The check needs api.pwnedpasswords.com. Your password still never left this page — the failed request contained only a 5-character prefix. Try again shortly.");
+  }).then(resetBtn, resetBtn);
 });
-vis.addEventListener("click", () => {
-  const showing = pw.type === "text";
+pw.addEventListener("keydown", function(e){ if(e.key==="Enter") go.click(); });
+pw.addEventListener("input", function(){
+  verdict.classList.remove("on"); split.classList.remove("on");
+  strength.classList.remove("on"); zipfpanel.classList.remove("on");
+});
+vis.addEventListener("click", function(){
+  var showing = pw.type==="text";
   pw.type = showing ? "password" : "text";
   vis.textContent = showing ? "show" : "hide";
   vis.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+});
+
+/* ---------- generator: CSPRNG with rejection sampling (no modulo bias) ---------- */
+var CHARSET="abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789-_.!@#$%&*+=?";
+/* dropped l/I/1/O/0 lookalikes on purpose — transcription errors are a real failure mode */
+function generate(len){
+  var out="", limit=Math.floor(256/CHARSET.length)*CHARSET.length, b=new Uint8Array(1);
+  while(out.length<len){
+    crypto.getRandomValues(b);
+    if(b[0]<limit) out+=CHARSET[b[0]%CHARSET.length];  // reject values that would bias the distribution
+  }
+  return out;
+}
+var lenSlider=$("len");
+function doGen(){
+  var len=parseInt(lenSlider.value,10), p=generate(len);
+  $("genout").textContent=p;
+  $("genent").textContent=(len*Math.log2(CHARSET.length)).toFixed(0)+" bits";
+}
+lenSlider.addEventListener("input", function(){ $("lenv").textContent=lenSlider.value; });
+$("genbtn").addEventListener("click", doGen);
+$("copy").addEventListener("click", function(){
+  var t=$("genout").textContent;
+  if(t && t.indexOf("Press")===-1){
+    navigator.clipboard.writeText(t).then(function(){
+      $("copy").textContent="Copied"; setTimeout(function(){ $("copy").textContent="Copy"; },1200);
+    });
+  }
 });
 </script>
 </body>

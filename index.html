@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentinel — check if a password is breached, without revealing it</title>
+<meta name="description" content="Privacy-preserving password breach check using k-anonymity. Your password never leaves this page.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#0B1120;        /* deep watch-night background */
+  --panel:#121B2E;        /* raised surfaces */
+  --panel-2:#182339;      /* hover / inner surfaces */
+  --line:#243149;         /* hairline borders */
+  --lantern:#E8B44C;      /* the sentinel's lamp — primary accent */
+  --lantern-dim:#8a6c2e;
+  --ink:#EDF1F7;          /* bright text */
+  --mist:#7C8DB0;         /* muted text */
+  --danger:#E15A5A;       /* breached */
+  --safe:#5FB88A;         /* clean */
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --serif:'Instrument Serif',Georgia,serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--night);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+::selection{background:var(--lantern);color:var(--night)}
+
+.wrap{max-width:880px;margin:0 auto;padding:0 24px}
+
+/* ---------- header ---------- */
+header{padding:28px 0;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:1.5rem;letter-spacing:.01em}
+.brand .lamp{width:10px;height:10px;border-radius:50%;background:var(--lantern);box-shadow:0 0 14px 3px rgba(232,180,76,.55);animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{0%,100%{box-shadow:0 0 10px 2px rgba(232,180,76,.4)}50%{box-shadow:0 0 18px 5px rgba(232,180,76,.7)}}
+header nav a{color:var(--mist);text-decoration:none;font-size:.85rem;margin-left:22px}
+header nav a:hover{color:var(--lantern)}
+
+/* ---------- hero ---------- */
+.hero{padding:56px 0 20px;text-align:left}
+.hero h1{font-family:var(--serif);font-weight:400;font-size:clamp(2.2rem,5.5vw,3.4rem);line-height:1.12;max-width:20ch}
+.hero h1 em{font-style:italic;color:var(--lantern)}
+.hero p.lede{color:var(--mist);max-width:52ch;margin-top:18px;font-size:1.02rem}
+
+/* ---------- the tool ---------- */
+.tool{margin:44px 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px}
+.field-row{display:flex;gap:10px;flex-wrap:wrap}
+.pw-wrap{flex:1;min-width:230px;position:relative}
+input[type=password],input[type=text].pw{width:100%;background:var(--night);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:var(--mono);font-size:1rem;padding:14px 88px 14px 16px;outline:none;transition:border-color .2s}
+input:focus{border-color:var(--lantern)}
+.toggle-vis{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mist);font-family:var(--sans);font-size:.75rem;cursor:pointer;padding:6px}
+.toggle-vis:hover{color:var(--ink)}
+button.check{background:var(--lantern);color:#161006;border:none;border-radius:9px;font-family:var(--sans);font-weight:600;font-size:.95rem;padding:14px 26px;cursor:pointer;transition:transform .12s,filter .2s}
+button.check:hover{filter:brightness(1.08)}
+button.check:active{transform:scale(.98)}
+button.check:disabled{filter:grayscale(.6) brightness(.7);cursor:wait}
+.assurance{margin-top:12px;font-size:.8rem;color:var(--mist)}
+.assurance b{color:var(--ink);font-weight:500}
+
+/* ---------- hash split visual (the signature) ---------- */
+.split{display:none;margin-top:26px;border-top:1px dashed var(--line);padding-top:22px}
+.split.on{display:block;animation:rise .45s ease}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.split .cap{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mist);margin-bottom:10px}
+.hashline{font-family:var(--mono);font-size:clamp(.72rem,1.9vw,.95rem);word-break:break-all;line-height:1.9}
+.hashline .pre{color:var(--night);background:var(--lantern);padding:2px 5px;border-radius:5px;font-weight:500}
+.hashline .suf{color:var(--mist);border-bottom:1px dotted var(--line)}
+.legend{display:flex;gap:26px;flex-wrap:wrap;margin-top:14px}
+.legend div{font-size:.78rem;color:var(--mist);display:flex;align-items:center;gap:8px}
+.dotp{width:9px;height:9px;border-radius:3px;background:var(--lantern);flex:none}
+.dots{width:9px;height:9px;border-radius:3px;border:1px dotted var(--mist);flex:none}
+.legend b{color:var(--ink);font-weight:500}
+
+/* ---------- verdict ---------- */
+.verdict{display:none;margin-top:22px;border-radius:11px;padding:20px 22px;font-size:.95rem}
+.verdict.on{display:block;animation:rise .45s ease}
+.verdict.bad{background:rgba(225,90,90,.09);border:1px solid rgba(225,90,90,.4)}
+.verdict.good{background:rgba(95,184,138,.08);border:1px solid rgba(95,184,138,.35)}
+.verdict.err{background:var(--panel-2);border:1px solid var(--line)}
+.verdict h3{font-family:var(--serif);font-weight:400;font-size:1.35rem;margin-bottom:6px}
+.verdict.bad h3{color:var(--danger)}
+.verdict.good h3{color:var(--safe)}
+.verdict .n{font-family:var(--mono)}
+.verdict p{color:var(--mist);font-size:.88rem}
+
+/* ---------- strength panel ---------- */
+.strength{display:none;margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px 28px}
+.strength.on{display:block;animation:rise .5s ease}
+.strength h2{font-family:var(--serif);font-weight:400;font-size:1.3rem;margin-bottom:16px}
+.meter{height:9px;border-radius:5px;background:var(--night);overflow:hidden;border:1px solid var(--line)}
+.meter i{display:block;height:100%;width:0;border-radius:5px;transition:width .5s ease,background .5s ease}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-top:18px}
+.stat{background:var(--night);border:1px solid var(--line);border-radius:9px;padding:13px 15px}
+.stat .k{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--mist)}
+.stat .v{font-family:var(--mono);font-size:1.02rem;margin-top:4px}
+.flags{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.flag{font-size:.85rem;color:var(--mist);padding-left:20px;position:relative}
+.flag::before{content:'';position:absolute;left:2px;top:.55em;width:7px;height:7px;border-radius:50%}
+.flag.warn::before{background:var(--danger)}
+.flag.ok::before{background:var(--safe)}
+
+/* ---------- how it works ---------- */
+.how{margin:72px 0}
+.how h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3.5vw,2.1rem);margin-bottom:8px}
+.how p.sub{color:var(--mist);max-width:56ch;margin-bottom:34px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px}
+.step .glyph{font-family:var(--mono);color:var(--lantern);font-size:.8rem;margin-bottom:12px;display:block}
+.step h3{font-size:.98rem;font-weight:600;margin-bottom:8px}
+.step p{color:var(--mist);font-size:.86rem}
+.analogy{margin-top:26px;border-left:2px solid var(--lantern);padding:6px 0 6px 20px;color:var(--mist);font-size:.92rem;max-width:62ch}
+.analogy em{color:var(--ink);font-style:italic;font-family:var(--serif);font-size:1.05em}
+
+/* ---------- why ---------- */
+.why{margin:72px 0;border-top:1px solid var(--line);padding-top:48px}
+.why h2{font-family:var(--serif);font-weight:400;font-size:clamp(1.6rem,3.5vw,2.1rem);margin-bottom:30px}
+.figures{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.fig{padding:4px 0}
+.fig .big{font-family:var(--serif);font-size:2.6rem;color:var(--lantern);line-height:1.1}
+.fig .cap2{color:var(--mist);font-size:.83rem;margin-top:6px;max-width:26ch}
+
+footer{margin-top:80px;border-top:1px solid var(--line);padding:30px 0 44px;color:var(--mist);font-size:.78rem;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+footer a{color:var(--mist)}
+footer a:hover{color:var(--lantern)}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+:focus-visible{outline:2px solid var(--lantern);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <div class="brand"><span class="lamp" aria-hidden="true"></span>Sentinel</div>
+  <nav aria-label="Sections">
+    <a href="#how">How it works</a>
+    <a href="#why">Why it matters</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <h1>Check if a password has been breached — <em>without revealing it.</em></h1>
+  <p class="lede">Checks a password against 800M+ leaked credentials from Have I Been Pwned — using k-anonymity, so the password itself never leaves your browser. Only 5 characters of its hash do. Don't take my word for it: open the network tab and watch.</p>
+</section>
+
+<section class="tool" aria-label="Password check">
+  <div class="field-row">
+    <div class="pw-wrap">
+      <input type="password" id="pw" autocomplete="off" spellcheck="false"
+             placeholder="Type a password to check" aria-label="Password to check">
+      <button class="toggle-vis" id="vis" type="button" aria-label="Show password">show</button>
+    </div>
+    <button class="check" id="go" type="button">Check exposure</button>
+  </div>
+  <p class="assurance">Nothing you type is stored or sent. <b>Open your browser's network tab and watch:</b> the only request is a 5-character hash prefix.</p>
+
+  <div class="split" id="split" aria-live="polite">
+    <div class="cap">SHA-1 fingerprint of your password</div>
+    <div class="hashline" id="hashline"></div>
+    <div class="legend">
+      <div><span class="dotp"></span><span><b>First 5 characters</b> — the only thing sent</span></div>
+      <div><span class="dots"></span><span><b>Remaining 35</b> — never leave this page</span></div>
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict" role="status"></div>
+</section>
+
+<section class="strength" id="strength" aria-label="Strength analysis">
+  <h2>Strength analysis</h2>
+  <div class="meter"><i id="bar"></i></div>
+  <div class="stats">
+    <div class="stat"><div class="k">Length</div><div class="v" id="s-len">—</div></div>
+    <div class="stat"><div class="k">Character space</div><div class="v" id="s-space">—</div></div>
+    <div class="stat"><div class="k">Entropy</div><div class="v" id="s-ent">—</div></div>
+    <div class="stat"><div class="k">Offline crack time</div><div class="v" id="s-crack">—</div></div>
+  </div>
+  <div class="flags" id="flags"></div>
+</section>
+
+<section class="how" id="how">
+  <h2>How the check stays private</h2>
+  <p class="sub">The naive way to check a password against a breach list is to send the password to a server — which is itself a leak. This is the workaround I found genuinely elegant when I first studied it: k-anonymity, the same range-query protocol password managers like 1Password use under the hood.</p>
+  <div class="steps">
+    <div class="step">
+      <span class="glyph">password → 40 hex chars</span>
+      <h3>Hash locally</h3>
+      <p>Your browser computes the SHA-1 fingerprint of the password. This happens on your machine, in this page's code — the password itself never exists anywhere else.</p>
+    </div>
+    <div class="step">
+      <span class="glyph">send: first 5 only</span>
+      <h3>Ask by prefix</h3>
+      <p>Only the first 5 characters of the fingerprint are sent to the Have I Been Pwned database. That prefix matches roughly 800 different leaked hashes — the server cannot tell which one, if any, is yours.</p>
+    </div>
+    <div class="step">
+      <span class="glyph">match happens here</span>
+      <h3>Compare locally</h3>
+      <p>The server returns every suffix in that range. Your browser checks — privately, on your device — whether the remaining 35 characters appear in the list.</p>
+    </div>
+  </div>
+  <p class="analogy"><em>Instead of asking the librarian "do you have my diary?"</em> — you ask for everything on shelf 5B and look through the shelf yourself. The librarian never learns which book you were after.</p>
+</section>
+
+<section class="why" id="why">
+  <h2>Why this matters</h2>
+  <div class="figures">
+    <div class="fig"><div class="big">22%</div><div class="cap2">of confirmed breaches begin with stolen credentials — the leading entry point (Verizon DBIR 2025)</div></div>
+    <div class="fig"><div class="big">94%</div><div class="cap2">of 19 billion leaked passwords analyzed were reused or duplicated (Cybernews)</div></div>
+    <div class="fig"><div class="big">6B+</div><div class="cap2">passwords stolen by malware in 2025 alone (Specops Breached Password Report 2026)</div></div>
+  </div>
+</section>
+
+<footer>
+  <span>Built by Harsha (<a href="https://github.com/gyanaharsha" rel="noopener">gyanaharsha</a>) — MS CS, cryptography &amp; cybersecurity. Started as a study exercise on k-anonymity; kept going.</span>
+  <span>Breach data: <a href="https://haveibeenpwned.com/Passwords" rel="noopener">Have I Been Pwned</a> range API</span>
+</footer>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const pw = $("pw"), go = $("go"), vis = $("vis");
+const split = $("split"), hashline = $("hashline"), verdict = $("verdict");
+const strength = $("strength"), bar = $("bar"), flags = $("flags");
+
+/* SHA-1 via the browser's Web Crypto API. Needs a secure context
+   (https or localhost) — learned that the hard way testing over plain
+   http and getting `crypto.subtle is undefined`.
+   TODO(panel 3): breach-corpus stats with pandas, charts rendered here. */
+async function sha1Hex(str){
+  const data = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest("SHA-1", data);
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("").toUpperCase();
+}
+
+/* ---------- strength analysis ---------- */
+const COMMON = ["password","123456","123456789","qwerty","abc123","111111","12345678","iloveyou","admin","welcome","monkey","dragon","letmein","football","princess","sunshine","master","hello","freedom","whatever","qazwsx","trustno1","654321","superman","1qaz2wsx","password1","password123","welcome123","admin123","india123"];
+const ROWS = ["qwertyuiop","asdfghjkl","zxcvbnm","1234567890"];
+
+function charSpace(s){
+  let n = 0;
+  if(/[a-z]/.test(s)) n += 26;
+  if(/[A-Z]/.test(s)) n += 26;
+  if(/[0-9]/.test(s)) n += 10;
+  if(/[^a-zA-Z0-9]/.test(s)) n += 33;
+  return n || 1;
+}
+function hasSequence(s){
+  const low = s.toLowerCase();
+  for(let i=0;i<low.length-2;i++){
+    const a=low.charCodeAt(i),b=low.charCodeAt(i+1),c=low.charCodeAt(i+2);
+    if(b===a+1 && c===b+1) return true;
+    if(b===a-1 && c===b-1) return true;
+  }
+  return false;
+}
+function hasKeyboardWalk(s){
+  const low = s.toLowerCase();
+  return ROWS.some(r=>{
+    for(let i=0;i+3<=r.length;i++) if(low.includes(r.slice(i,i+3))) return true;
+    return false;
+  });
+}
+function humanTime(sec){
+  if(sec < 1) return "instant";
+  const u = [["yrs",31557600],["days",86400],["hrs",3600],["min",60],["sec",1]];
+  for(const [name,s] of u){
+    if(sec >= s){
+      const v = sec/s;
+      if(name==="yrs" && v > 1e12) return "> a trillion yrs";
+      if(name==="yrs" && v > 1e6) return (v/1e6).toFixed(0)+"M yrs";
+      return v.toFixed(v<10?1:0)+" "+name;
+    }
+  }
+  return "instant";
+}
+function analyze(s){
+  const space = charSpace(s);
+  const entropy = +(s.length * Math.log2(space)).toFixed(1);
+  const guesses = Math.pow(space, s.length);
+  const crack = guesses / 2 / 1e10;           // offline GPU rig: 10 billion guesses/sec
+  const items = [];
+  const low = s.toLowerCase();
+  if(COMMON.includes(low)) items.push(["warn","Appears in the most-common password lists — cracked instantly."]);
+  if(s.length < 12) items.push(["warn","Shorter than 12 characters. Length is the strongest single factor."]);
+  else items.push(["ok","Good length — every extra character multiplies the search space."]);
+  if(/^[A-Z][a-z]+[0-9!@#$%^&*]{1,3}$/.test(s)) items.push(["warn","Capital first letter + digits/symbol at the end — the pattern 60% of humans use. Cracking tools try it first."]);
+  if(/(19|20)\d{2}/.test(s)) items.push(["warn","Contains a year — one of the first substitutions cracking tools try."]);
+  if(hasSequence(s)) items.push(["warn","Contains a sequential run (abc / 123)."]);
+  if(hasKeyboardWalk(s)) items.push(["warn","Contains a keyboard walk (qwerty / asdf)."]);
+  if(/(.)\1{2,}/.test(s)) items.push(["warn","Repeated characters reduce effective entropy."]);
+  if(space >= 62 && s.length >= 12 && !items.some(f=>f[0]==="warn")) items.push(["ok","Mixed character classes with no obvious pattern — strong."]);
+  return {space, entropy, crack, items};
+}
+function renderStrength(s){
+  const a = analyze(s);
+  $("s-len").textContent = s.length + " chars";
+  $("s-space").textContent = a.space + " symbols";
+  $("s-ent").textContent = a.entropy + " bits";
+  $("s-crack").textContent = humanTime(a.crack);
+  const pct = Math.min(100, (a.entropy/90)*100);
+  bar.style.width = pct + "%";
+  bar.style.background = pct < 35 ? "var(--danger)" : pct < 65 ? "var(--lantern)" : "var(--safe)";
+  flags.innerHTML = "";
+  a.items.forEach(([cls,txt])=>{
+    const d = document.createElement("div");
+    d.className = "flag " + cls;
+    d.textContent = txt;
+    flags.appendChild(d);
+  });
+  strength.classList.add("on");
+}
+
+/* ---------- the check ---------- */
+function showVerdict(cls, title, body){
+  verdict.className = "verdict on " + cls;
+  verdict.innerHTML = "<h3>"+title+"</h3><p>"+body+"</p>";
+}
+async function check(){
+  const val = pw.value;
+  if(!val){ pw.focus(); return; }
+  go.disabled = true; go.textContent = "Checking…";
+  try{
+    const hash = await sha1Hex(val);
+    const prefix = hash.slice(0,5), suffix = hash.slice(5);
+    hashline.innerHTML = '<span class="pre">'+prefix+'</span><span class="suf">'+suffix+'</span>';
+    split.classList.add("on");
+
+    const res = await fetch("https://api.pwnedpasswords.com/range/"+prefix, {
+      headers: {"Add-Padding":"true"}   // uniform response sizes; closes the length side-channel
+    });
+    if(!res.ok) throw new Error("API "+res.status);
+    const text = await res.text();
+    let count = 0;
+    for(const line of text.split("\n")){
+      const [suf, c] = line.trim().split(":");
+      if(suf === suffix){ count = parseInt(c,10); break; }
+    }
+    if(count > 0){
+      showVerdict("bad","Found in breaches — <span class='n'>"+count.toLocaleString()+"</span> times",
+        "This exact password appears in real breach data and is loaded into attackers' cracking lists. If you use it anywhere, change it now — and never reuse it.");
+    }else{
+      showVerdict("good","Not found in known breaches",
+        "This password doesn't appear in the 800M+ leaked set. That's necessary but not sufficient — check its structural strength below.");
+    }
+    renderStrength(val);
+  }catch(e){
+    showVerdict("err","Couldn't reach the breach database",
+      "The check requires a connection to api.pwnedpasswords.com. Your password still never left this page — the request that failed contained only a 5-character prefix. Try again in a moment.");
+  }finally{
+    go.disabled = false; go.textContent = "Check exposure";
+  }
+}
+go.addEventListener("click", check);
+pw.addEventListener("keydown", e => { if(e.key === "Enter") check(); });
+pw.addEventListener("input", () => {           // stale results shouldn't linger
+  verdict.classList.remove("on");
+  split.classList.remove("on");
+  strength.classList.remove("on");
+});
+vis.addEventListener("click", () => {
+  const showing = pw.type === "text";
+  pw.type = showing ? "password" : "text";
+  vis.textContent = showing ? "show" : "hide";
+  vis.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+});
+</script>
+</body>
+</html>
